@@ -1,0 +1,2 @@
+defmodule SnakeGame do
+end
