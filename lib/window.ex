@@ -1,7 +1,8 @@
 defmodule Window do
-  defstruct [:frame, :t_len]
+  defstruct [:frame, :t_len, :canvas, :snake_pen]
 
   use Bitwise
+  require Snake
 
   @wxHORIZONTAL 4
   @wxVERTICAL 8
@@ -16,6 +17,8 @@ defmodule Window do
   @wxEXPAND 8192
   @wxSHAPED 16384
   @wxFONTWEIGHT_BOLD 92
+
+  @wxSOLID 100
 
   def new() do
     :wx.new()
@@ -44,7 +47,9 @@ defmodule Window do
     :wxBoxSizer.add(s, t3, [proportion: 0, flag: @wxALIGN_CENTER])
     :wxFrame.setSizer(f, s)
 
-    %Window{frame: f, t_len: t2}
+    sp = :wxPen.new({255, 255, 0}, [width: 3, style: @wxSOLID])
+
+    %Window{frame: f, t_len: t2, canvas: c, snake_pen: sp}
   end
 
   def show(win) do
@@ -53,5 +58,18 @@ defmodule Window do
     else
       true = :wxFrame.show(win.frame)
     end
+  end
+
+  def destroy(win) do
+    :wxFrame.destroy(win.frame)
+  end
+
+  def draw(win, snake = %Snake{}) do
+    do_draw(win, snake, :wxClientDC.new(win.canvas))
+  end
+
+  def do_draw(win, snake, dc) do
+    :wxDC.setPen(dc, win.snake_pen)
+    :wxDC.drawLine(dc, {10, 10}, {10, 20})
   end
 end
