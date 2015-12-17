@@ -1,34 +1,21 @@
 defmodule Snake do
-  defstruct head: %Vector{}, tail: [] 
+  defstruct h: {0, 0}, tail: [{0, 0}] 
 
-  def grow(snake, dir, len \\ 1) when dir != :none do
-    if dir == snake.head.dir do
-      %Snake{snake | head: Vector.grow(snake.head, len)}
-    else
-      %Snake{head: %Vector{dir: dir, len: len}, tail: push_segment(snake.tail, snake.head)}
-    end
+  def new(x, y) when is_integer(x) and is_integer(y) do
+    %Snake{h: {x, y}, tail: [{x, y}]}
   end
 
-  def move(snake, dir, len \\ 1) when dir != :none do
-    snake |> grow(dir, len) |> shrink(len)
+  def new([{x, y} | tail]) do
+    %Snake{h: {x, y}, tail: parse_tail({x, y}, tail)}
   end
 
-  def shrink(%Snake{head: head, tail: tail}, len \\ 1) do
-    do_shrink(head, tail, len)
+  defp parse_tail({x, y}, []), do: []
+  defp parse_tail({x1, y1}, [{x2, y2} | tail]) do
+    raise_if_skew {x1, y1}, {x2, y2}
+    parse_tail({x2, y2}, tail) ++ [{x2, y2}]
   end
 
-  defp do_shrink(head, [], len) do
-    %Snake{head: %Vector{} = Vector.shrink(head, len)}
+  defp raise_if_skew({x1, y1}, {x2, y2}) do
+    unless x1 == x2 or y1 == y2, do: raise "Segments must be vertical or horizontal."
   end
-  defp do_shrink(head, [tail | body], len) do
-    case Vector.shrink(tail, len) do
-      left when is_integer(left) -> do_shrink(head, body, left)
-      tail -> %Snake{head: head, tail: [tail | body]}
-    end
-  end
-
-  @empty_vector %Vector{}
-
-  defp push_segment(tail, @empty_vector), do: tail
-  defp push_segment(tail, vector), do: tail ++ [vector]
 end
