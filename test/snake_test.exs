@@ -19,7 +19,6 @@ defmodule SnakeTest do
 
   test "grow snake" do
     s = Snake.new(10, 20)
-
     assert %Snake{h: {10, 19}, tail: [{10, 20}]} = Snake.grow(s, :up)
     assert %Snake{h: {10, 17}, tail: [{10, 20}]} = Snake.grow(s, :up, 3)
     assert %Snake{h: {10, 21}, tail: [{10, 20}]} = Snake.grow(s, :down)
@@ -36,5 +35,20 @@ defmodule SnakeTest do
     s = Snake.new([{10, 20}, {30, 20}, {30, 40}])
     assert %Snake{h: {9, 20}, tail: [{30, 40}, {30, 20}]} = Snake.grow(s, :left)
     assert %Snake{h: {10, 19}, tail: [{30, 40}, {30, 20}, {10, 20}]} = Snake.grow(s, :up)
+  end
+
+  test "shrink snake" do
+    s = Snake.new([{10, 20}, {30, 20}, {30, 40}])
+    assert %Snake{h: {10, 20}, tail: [{30, 39}, {30, 20}]} = Snake.shrink(s)
+    assert %Snake{h: {10, 20}, tail: [{28, 20}]} = Snake.shrink(s, 22)
+
+    s = Snake.new([{10, 20}, {30, 20}, {30, 21}])
+    assert %Snake{h: {10, 20}, tail: [{30, 20}]} = Snake.shrink(s)
+    assert %Snake{h: {10, 20}, tail: [{10, 20}]} = Snake.shrink(s, 22)
+  end
+
+  test "move snake" do
+    s = Snake.new([{10, 20}, {30, 20}, {30, 40}])
+    assert %Snake{h: {10, 21}, tail: [{30, 39}, {30, 20}, {10, 20}]} = Snake.move(s, :down)
   end
 end

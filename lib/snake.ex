@@ -18,6 +18,31 @@ defmodule Snake do
     end
   end
 
+  def shrink(snake, len \\ 1) do
+    do_shrink(snake.h, snake.tail, len)
+  end
+
+  def move(snake, dir, len \\ 1) do
+    snake |> grow(dir, len) |> shrink(len)
+  end
+
+  defp do_shrink(h, [l], len) do
+    tail_len = len(h, l)
+    if tail_len > len do
+      %Snake{h: h, tail: [move_point(l, dir(l, h), len)]}
+    else
+      %Snake{h: h, tail: [h]}
+    end
+  end
+  defp do_shrink(h, [l, p | body], len) do
+    tail_len = len(l, p)
+    if tail_len > len do
+      %Snake{h: h, tail: [move_point(l, dir(l, p), len), p | body]}
+    else
+      do_shrink(h, [p | body], len - tail_len)
+    end
+  end
+
   defp move_point({x, y}, :right, len), do: {x + len, y}
   defp move_point({x, y}, :left, len),  do: {x - len, y}
   defp move_point({x, y}, :down, len),  do: {x, y + len}
@@ -29,6 +54,8 @@ defmodule Snake do
     raise_if_skew h, p
     parse_tail(p, tail) ++ [p]
   end
+
+  defp len({x1, y1}, {x2, y2}), do: abs((x2 - x1) + (y2 - y1))
 
   defp dir(%Snake{h: h, tail: tail}) do
     p = Enum.fetch!(tail, -1)
