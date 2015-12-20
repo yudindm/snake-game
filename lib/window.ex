@@ -1,5 +1,5 @@
 defmodule Window do
-  defstruct [:frame, :t_len, :canvas, :snake_pen]
+  defstruct [:frame, :t_len, :canvas, :snake_pen, :field_brush]
 
   use Bitwise
   require Snake
@@ -34,7 +34,7 @@ defmodule Window do
 
     t3 = :wxStaticText.new(f, -1, 'bottom line')
 
-    c = :wxPanel.new(f, [size: {300, 300}])
+    c = :wxPanel.new(f, [size: {200, 200}])
     :wxPanel.setBackgroundColour(c, {0, 255, 0})
 
     s = :wxBoxSizer.new(@wxVERTICAL)
@@ -48,8 +48,9 @@ defmodule Window do
     :wxFrame.setSizer(f, s)
 
     sp = :wxPen.new({255, 255, 0}, [width: 3, style: @wxSOLID])
+    brush = :wxBrush.new({0, 255, 0})
 
-    %Window{frame: f, t_len: t2, canvas: c, snake_pen: sp}
+    %Window{frame: f, t_len: t2, canvas: c, snake_pen: sp, field_brush: brush}
   end
 
   def show(win) do
@@ -62,14 +63,29 @@ defmodule Window do
 
   def destroy(win) do
     :wxFrame.destroy(win.frame)
+    :wxPen.destroy(win.snake_pen)
+    :wxBrush.destroy(win.field_brush)
   end
 
   def draw(win, snake = %Snake{}) do
-    do_draw(win, snake, :wxClientDC.new(win.canvas))
+    wdc = :wxClientDC.new(win.canvas)
+    {w, h} = :wxDC.getSize(wdc)
+    bmp = :wxBitmap.new(w, h)
+    mdc = :wxMemoryDC.new(bmp)
+    do_draw(win, points(snake), mdc)
+
+    :wxDC.blit(wdc, {0, 0}, {w, h}, mdc, {0, 0})
+    :wxClientDC.destroy(wdc)
+    :wxMemoryDC.destroy(mdc)
+    :wxBitmap.destroy(bmp)
   end
 
-  def do_draw(win, snake, dc) do
+  def do_draw(win, pp, dc) do
     :wxDC.setPen(dc, win.snake_pen)
-    :wxDC.drawLine(dc, {10, 10}, {10, 20})
+    :wxDC.setBackground(dc, win.field_brush)
+    :wxDC.clear(dc)
+    :wxDC.drawLines(dc, pp)
   end
+
+  defp points(snake), do: [snake.h | Enum.reverse(snake.tail)]
 end
