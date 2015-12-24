@@ -4,7 +4,6 @@ defmodule Window do
   @behaiour :wx_object
 
   use Bitwise
-  require Snake
 
   require Record
   Record.defrecord :wx, [:id, :obj, :userData, :event]
@@ -34,8 +33,8 @@ defmodule Window do
     :wx_object.call(object, :show)
   end
 
-  def draw(object, snake = %Snake{}) do
-    :wx_object.call(object, {:draw, snake})
+  def draw(object, snake_points) do
+    :wx_object.call(object, {:draw, snake_points})
   end
 
   def init([]) do
@@ -80,6 +79,20 @@ defmodule Window do
     {:reply, :ok, win}
   end
 
+  def handle_call({:draw, snake_points}, _from,  win) do
+    wdc = :wxClientDC.new(win.canvas)
+    {w, h} = :wxDC.getSize(wdc)
+    bmp = :wxBitmap.new(w, h)
+    mdc = :wxMemoryDC.new(bmp)
+    do_draw(win, snake_points, mdc)
+
+    :wxDC.blit(wdc, {0, 0}, {w, h}, mdc, {0, 0})
+    :wxClientDC.destroy(wdc)
+    :wxMemoryDC.destroy(mdc)
+    :wxBitmap.destroy(bmp)
+    {:reply, :ok, win}
+  end
+
   def handle_event(wx(event: wxClose()), win) do
     {:stop, :normal, win}
   end
@@ -94,26 +107,10 @@ defmodule Window do
 
   def code_change(_, _, win), do: {:ok, win}
 
-  def handle_call({:draw, snake = %Snake{}}, _from,  win) do
-    wdc = :wxClientDC.new(win.canvas)
-    {w, h} = :wxDC.getSize(wdc)
-    bmp = :wxBitmap.new(w, h)
-    mdc = :wxMemoryDC.new(bmp)
-    do_draw(win, points(snake), mdc)
-
-    :wxDC.blit(wdc, {0, 0}, {w, h}, mdc, {0, 0})
-    :wxClientDC.destroy(wdc)
-    :wxMemoryDC.destroy(mdc)
-    :wxBitmap.destroy(bmp)
-    {:reply, :ok, win}
-  end
-
   defp do_draw(win, pp, dc) do
     :wxDC.setPen(dc, win.snake_pen)
     :wxDC.setBackground(dc, win.field_brush)
     :wxDC.clear(dc)
     :wxDC.drawLines(dc, pp)
   end
-
-  defp points(snake), do: [snake.h | Enum.reverse(snake.tail)]
 end

@@ -26,6 +26,8 @@ defmodule Snake do
     snake |> grow(dir, len) |> shrink(len)
   end
 
+  def points(%Snake{h: h, tail: tail}), do: [h | Enum.reverse(tail)]
+
   defp do_shrink(h, [l], len) do
     tail_len = len(h, l)
     if tail_len > len do
