@@ -1,5 +1,5 @@
 defmodule Window do
-  defstruct [:frame, :t_len, :canvas, :snake_pen, :field_brush]
+  defstruct [:frame, :t_len, :canvas, :snake_pen, :field_brush, :snake_points]
 
   @behaiour :wx_object
 
@@ -8,6 +8,7 @@ defmodule Window do
   require Record
   Record.defrecord :wx, [:id, :obj, :userData, :event]
   Record.defrecord :wxClose, [:type]
+  Record.defrecord :wxPaint, [:type]
 
   @wxHORIZONTAL 4
   @wxVERTICAL 8
@@ -68,6 +69,7 @@ defmodule Window do
     brush = :wxBrush.new({0, 255, 0})
 
     :wxFrame.connect(f, :close_window)
+    :wxPanel.connect(c, :paint, [:callback])
 
     {f, %Window{frame: f, t_len: t2, canvas: c, snake_pen: sp, field_brush: brush}}
   end
@@ -80,21 +82,26 @@ defmodule Window do
   end
 
   def handle_call({:draw, snake_points}, _from,  win) do
-    wdc = :wxClientDC.new(win.canvas)
-    {w, h} = :wxDC.getSize(wdc)
-    bmp = :wxBitmap.new(w, h)
-    mdc = :wxMemoryDC.new(bmp)
-    do_draw(win, snake_points, mdc)
-
-    :wxDC.blit(wdc, {0, 0}, {w, h}, mdc, {0, 0})
-    :wxClientDC.destroy(wdc)
-    :wxMemoryDC.destroy(mdc)
-    :wxBitmap.destroy(bmp)
-    {:reply, :ok, win}
+    :wxWindow.refresh win.canvas
+    {:reply, :ok, %Window{win | snake_points: snake_points}}
   end
 
   def handle_event(wx(event: wxClose()), win) do
     {:stop, :normal, win}
+  end
+
+  def handle_sync_event(wx(event: wxPaint()), _wxObj, win) do
+    dc = :wxPaintDC.new(win.canvas)
+    {w, h} = :wxDC.getSize(dc)
+    bmp = :wxBitmap.new(w, h)
+    mdc = :wxMemoryDC.new(bmp)
+
+    do_draw(win, win.snake_points, mdc)
+    :wxDC.blit(dc, {0, 0}, {w, h}, mdc, {0, 0})
+
+    :wxMemoryDC.destroy(mdc)
+    :wxBitmap.destroy(bmp)
+    :wxPaintDC.destroy(dc)
   end
 
   def handle_info(_msg, win), do: {:noreply, win}
