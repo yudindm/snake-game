@@ -1,5 +1,11 @@
 defmodule Window do
-  defstruct [:frame, :t_len, :canvas, :snake_pen, :field_brush, :snake_points]
+  defmodule Objects do
+    defstruct [:frame, :t_len, :canvas, :snake_pen, :field_brush]
+  end
+  defmodule Field do
+    defstruct [:snake_points]
+  end
+  defstruct objects: nil, field: nil
 
   @behaiour :wx_object
 
@@ -71,32 +77,31 @@ defmodule Window do
     :wxFrame.connect(f, :close_window)
     :wxPanel.connect(c, :paint, [:callback])
 
-    {f, %Window{frame: f, t_len: t2, canvas: c, snake_pen: sp, field_brush: brush}}
+    {f, %Window{objects: %Objects{frame: f, t_len: t2, canvas: c, snake_pen: sp, field_brush: brush}, field: %Field{}}}
   end
 
   def handle_call(:show, _from, win) do
-    unless :wxWindow.isShown(win.frame) do
-      true = :wxFrame.show(win.frame)
+    unless :wxWindow.isShown(win.objects.frame) do
+      true = :wxFrame.show(win.objects.frame)
     end
     {:reply, :ok, win}
   end
 
   def handle_call({:draw, snake_points}, _from,  win) do
-    :wxWindow.refresh win.canvas
-    {:reply, :ok, %Window{win | snake_points: snake_points}}
+    :wxWindow.refresh win.objects.canvas
+    {:reply, :ok, %Window{win | field: %Field{win.field | snake_points: snake_points}}}
   end
 
-  def handle_event(wx(event: wxClose()), win) do
-    {:stop, :normal, win}
+  def handle_event(wx(event: wxClose()), win) do {:stop, :normal, win}
   end
 
   def handle_sync_event(wx(event: wxPaint()), _wxObj, win) do
-    dc = :wxPaintDC.new(win.canvas)
+    dc = :wxPaintDC.new(win.objects.canvas)
     {w, h} = :wxDC.getSize(dc)
     bmp = :wxBitmap.new(w, h)
     mdc = :wxMemoryDC.new(bmp)
 
-    do_draw(win, win.snake_points, mdc)
+    do_draw(win, win.field.snake_points, mdc)
     :wxDC.blit(dc, {0, 0}, {w, h}, mdc, {0, 0})
 
     :wxMemoryDC.destroy(mdc)
@@ -107,16 +112,16 @@ defmodule Window do
   def handle_info(_msg, win), do: {:noreply, win}
 
   def terminate(_reason, win) do
-    :wxFrame.destroy(win.frame)
-    :wxPen.destroy(win.snake_pen)
-    :wxBrush.destroy(win.field_brush)
+    :wxFrame.destroy(win.objects.frame)
+    :wxPen.destroy(win.objects.snake_pen)
+    :wxBrush.destroy(win.objects.field_brush)
   end
 
   def code_change(_, _, win), do: {:ok, win}
 
   defp do_draw(win, pp, dc) do
-    :wxDC.setPen(dc, win.snake_pen)
-    :wxDC.setBackground(dc, win.field_brush)
+    :wxDC.setPen(dc, win.objects.snake_pen)
+    :wxDC.setBackground(dc, win.objects.field_brush)
     :wxDC.clear(dc)
     :wxDC.drawLines(dc, pp)
   end
