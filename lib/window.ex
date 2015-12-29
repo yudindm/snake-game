@@ -1,6 +1,6 @@
 defmodule Window do
   defmodule Objects do
-    defstruct [:frame, :t_len, :canvas, :snake_pen, :field_brush]
+    defstruct [:frame, :t_len, :canvas, :snake_pen, :border_pen, :field_brush]
   end
   defmodule Field do
     defstruct [:snake_points]
@@ -74,12 +74,21 @@ defmodule Window do
 
     sp = :wxPen.new({255, 255, 0}, [width: 3, style: @wxSOLID])
     brush = :wxBrush.new({0, 255, 0})
+    bp = :wxPen.new({0, 0, 255}, [width: 1, style: @wxSOLID])
 
     :wxFrame.connect(f, :close_window)
     :wxPanel.connect(c, :paint, [:callback])
     :wxPanel.connect(c, :size)
 
-    {f, %Window{objects: %Objects{frame: f, t_len: t2, canvas: c, snake_pen: sp, field_brush: brush}, field: %Field{}}}
+    {f, %Window{
+      objects: %Objects{
+        frame: f,
+        t_len: t2,
+        canvas: c,
+        snake_pen: sp,
+        field_brush: brush,
+        border_pen: bp},
+      field: %Field{}}}
   end
 
   def handle_call(:show, _from, win) do
@@ -98,7 +107,9 @@ defmodule Window do
   end
 
   def handle_event(wx(event: wxSize(size: {w, _h})), win) do
-    :wxPen.setWidth(win.objects.snake_pen, calc_width(w))
+    snake_width = calc_width(w)
+    :wxPen.setWidth(win.objects.snake_pen, snake_width)
+    :wxPen.setWidth(win.objects.border_pen, w - snake_width * grid_size())
     :wxWindow.refresh win.objects.canvas
     {:noreply, win}
   end
@@ -134,16 +145,25 @@ defmodule Window do
   def code_change(_, _, win), do: {:ok, win}
 
   defp do_draw(win, pp, dc) do
-    :wxDC.setPen(dc, win.objects.snake_pen)
     :wxDC.setBackground(dc, win.objects.field_brush)
     :wxDC.clear(dc)
+    :wxDC.setPen(dc, win.objects.border_pen)
+    :wxDC.setBrush(dc, :wxe_util.get_const(:wxTRANSPARENT_BRUSH))
+    border_width = :wxPen.getWidth(win.objects.border_pen)
+    size = :wxPen.getWidth(win.objects.snake_pen) * grid_size()
+    size = size + border_width + 1
+    shift = rem(border_width, 2)
+    :wxDC.drawRectangle(dc, {0 - shift, 0 - shift}, {size, size})
+    :wxDC.setPen(dc, win.objects.snake_pen)
     :wxDC.drawLines(dc, pp)
   end
 
   defp calc_width(w) do
-    snake_width = div(w, grid_size())
-    if (rem(snake_width, 2) == 0), do: snake_width = snake_width - 1
-    snake_width
+    if rem(w, grid_size()) == 0 do
+      div(w, grid_size()) - 1
+    else
+      div(w, grid_size())
+    end
   end
 
   defp transform_point({x, y}, f_transform) do
