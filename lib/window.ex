@@ -120,11 +120,15 @@ defmodule Window do
     bmp = :wxBitmap.new(w, h)
     mdc = :wxMemoryDC.new(bmp)
 
-    snake_width = calc_width(w)
-    offset = div(w - snake_width * grid_size(), 2) + div(snake_width, 2)
-    factor = snake_width
-    f_transform = &(&1 * factor + offset)
-    dc_pp = Enum.map(win.field.snake_points, &(transform_point &1, f_transform))
+    dc_pp = if win.field.snake_points == nil do
+      nil
+    else
+      snake_width = calc_width(w)
+      offset = div(w - snake_width * grid_size(), 2) + div(snake_width, 2)
+      factor = snake_width
+      f_transform = &(&1 * factor + offset)
+      Enum.map(win.field.snake_points, &(transform_point &1, f_transform))
+    end
 
     do_draw(win, dc_pp, mdc)
     :wxDC.blit(dc, {0, 0}, {w, h}, mdc, {0, 0})
@@ -147,6 +151,7 @@ defmodule Window do
   defp do_draw(win, pp, dc) do
     :wxDC.setBackground(dc, win.objects.field_brush)
     :wxDC.clear(dc)
+
     :wxDC.setPen(dc, win.objects.border_pen)
     :wxDC.setBrush(dc, :wxe_util.get_const(:wxTRANSPARENT_BRUSH))
     border_width = :wxPen.getWidth(win.objects.border_pen)
@@ -154,8 +159,11 @@ defmodule Window do
     size = size + border_width + 1
     shift = rem(border_width, 2)
     :wxDC.drawRectangle(dc, {0 - shift, 0 - shift}, {size, size})
-    :wxDC.setPen(dc, win.objects.snake_pen)
-    :wxDC.drawLines(dc, pp)
+
+    if pp != nil do
+      :wxDC.setPen(dc, win.objects.snake_pen)
+      :wxDC.drawLines(dc, pp)
+    end
   end
 
   defp calc_width(w) do
