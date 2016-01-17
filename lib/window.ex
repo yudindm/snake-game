@@ -1,4 +1,6 @@
-defmodule Window do
+defmodule SnakeGame.Window do
+  alias SnakeGame.Window
+
   defmodule Objects do
     defstruct [:frame, :t_len, :canvas, :snake_pen, :border_pen, :field_brush]
   end

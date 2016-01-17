@@ -1,4 +1,6 @@
-defmodule Snake do
+defmodule SnakeGame.Snake do
+  alias SnakeGame.Snake
+
   defstruct h: {0, 0}, tail: [{0, 0}] 
 
   def new(x, y) when is_integer(x) and is_integer(y) do
