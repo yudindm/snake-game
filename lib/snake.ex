@@ -24,7 +24,15 @@ defmodule SnakeGame.Snake do
     do_shrink(snake.h, snake.tail, len)
   end
 
-  def move(snake, dir, len \\ 1) do
+  def move(snake, dir) do
+    move(snake, dir, 1)
+  end
+
+  def move(snake, :none, _len) do
+    snake
+  end
+
+  def move(snake, dir, len) do
     snake |> grow(dir, len) |> shrink(len)
   end
 

@@ -7,7 +7,7 @@ defmodule SnakeGame.Window do
   defmodule Field do
     defstruct [:snake_points]
   end
-  defstruct objects: nil, field: nil
+  defstruct objects: nil, field: nil, controller: nil
 
   @behaiour :wx_object
 
@@ -18,6 +18,8 @@ defmodule SnakeGame.Window do
   Record.defrecord :wxClose, [:type]
   Record.defrecord :wxPaint, [:type]
   Record.defrecord :wxSize, [:type, :size, :rect]
+  Record.defrecord :wxKey, [:type, :x, :y, :keyCode, :controlDown,
+    :shiftDown, :altDown, :metaDown, :scanCode, :uniChar, :rawCode, :rawFlags]
 
   @wxHORIZONTAL 4
   @wxVERTICAL 8
@@ -35,8 +37,14 @@ defmodule SnakeGame.Window do
 
   @wxSOLID 100
 
-  def start_link() do
-    :wx_object.start_link(__MODULE__, [], [])
+  @wxkLEFT 314
+  @wxkUP 315
+  @wxkRIGHT 316
+  @wxkDOWN 317
+  @wxkSPACE 32
+
+  def start_link(controller) do
+    :wx_object.start_link(__MODULE__, {controller}, [])
   end
 
   def show(object) do
@@ -47,7 +55,7 @@ defmodule SnakeGame.Window do
     :wx_object.call(object, {:draw, snake_points})
   end
 
-  def init([]) do
+  def init({controller}) do
     :wx.new()
 
     f = :wxFrame.new(:wx.null(), -1, 'Snake Game')
@@ -81,6 +89,7 @@ defmodule SnakeGame.Window do
     :wxFrame.connect(f, :close_window)
     :wxPanel.connect(c, :paint, [:callback])
     :wxPanel.connect(c, :size)
+    :wxFrame.connect(f, :key_up)
 
     {f, %Window{
       objects: %Objects{
@@ -90,7 +99,8 @@ defmodule SnakeGame.Window do
         snake_pen: sp,
         field_brush: brush,
         border_pen: bp},
-      field: %Field{}}}
+      field: %Field{},
+      controller: controller}}
   end
 
   def handle_call(:show, _from, win) do
@@ -106,6 +116,17 @@ defmodule SnakeGame.Window do
   end
 
   def handle_event(wx(event: wxClose()), win) do {:stop, :normal, win}
+  end
+
+  def handle_event(wx(event: wxKey(type: :key_up, keyCode: code)), win) do
+    case code do
+      @wxkLEFT  -> dir_cmd(win.controller, :left)
+      @wxkUP    -> dir_cmd(win.controller, :up)
+      @wxkRIGHT -> dir_cmd(win.controller, :right)
+      @wxkDOWN  -> dir_cmd(win.controller, :down)
+      @wxkSPACE -> GenEvent.sync_notify win.controller, :pause_cmd
+    end
+    {:noreply, win}
   end
 
   def handle_event(wx(event: wxSize(size: {w, _h})), win) do
@@ -181,4 +202,9 @@ defmodule SnakeGame.Window do
   end
 
   defp grid_size(), do: 30
+
+  defp dir_cmd(controller, dir) do
+    GenEvent.sync_notify controller, {:dir_cmd, dir}
+  end
+
 end
