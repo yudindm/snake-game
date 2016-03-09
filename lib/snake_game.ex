@@ -44,6 +44,31 @@ defmodule SnakeGame do
     state
   end
   def update_state(state, {dir, _paused?}) do
-    put_in(state.field.snake, Snake.move(state.field.snake, dir))
+    {move_len, partial_move} = calc_move(state.field.partial_move, {1, 1}, {1, 30})
+    state = put_in(state.field.partial_move, partial_move)
+
+    if dir != :none do
+      state = put_in(state.field.snake_dir, dir)
+    end
+    if move_len > 0 do
+      state = put_in(state.field.snake, Snake.move(state.field.snake, state.field.snake_dir, move_len))
+    end 
+    state
   end
+
+  def calc_move({num, denum}, {speed_num, speed_denum}, {tick_num, tick_denum}) do
+    inc_num = tick_num * speed_num
+    inc_denum = tick_denum * speed_denum
+    num = num * inc_denum + inc_num * denum
+    denum = denum * tick_denum
+    gcd = calc_gcd(num, denum)
+    if gcd > 1 do
+      num = div(num, gcd)
+      denum = div(denum, gcd)
+    end
+    {div(num, denum), {rem(num, denum), denum}}
+  end
+
+  defp calc_gcd(a,0), do: abs(a)
+  defp calc_gcd(a,b), do: calc_gcd(b, rem(a,b))
 end
