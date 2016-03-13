@@ -2,11 +2,16 @@ defmodule SnakeGame.Controller do
   use GenEvent
 
   defmodule State do
-    defstruct dir_queue: :queue.new, pause: false
+    defstruct dir_queue: :queue.new, pause: false, stop: false
   end
 
   def handle_event({:dir_cmd, dir}, s = %State{}) do
     s = %State{s | dir_queue: :queue.in(dir, s.dir_queue)}
+    {:ok, s}
+  end
+
+  def handle_event(:quit_cmd, s = %State{}) do
+    s = %State{s | stop: true}
     {:ok, s}
   end
 
@@ -24,5 +29,9 @@ defmodule SnakeGame.Controller do
 
   def handle_call(:pause, s = %State{}) do
     {:ok, s.pause, s}
+  end
+
+  def handle_call(:stop, s = %State{}) do
+    {:ok, s.stop, s}
   end
 end

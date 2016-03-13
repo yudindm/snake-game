@@ -23,27 +23,34 @@ defmodule SnakeGame do
   def loop(state, window, controller) do
     t_start = :erlang.monotonic_time
 
-    control = read_controller controller
-    state = update_state state, control
-    Window.draw window, Snake.points(state.field.snake)
+    case read_controller controller do
+      {_, _, true} -> :ok
+      control ->  
+        state = update_state state, control
+        Window.draw window, Snake.points(state.field.snake)
 
-    elapsed = :erlang.monotonic_time - t_start
-    delay = div(1000, 30) - :erlang.convert_time_unit(elapsed, :native, :milli_seconds)
-    if delay > 0, do: :timer.sleep(delay)
+        elapsed = :erlang.monotonic_time - t_start
+        delay = div(1000, 30) - :erlang.convert_time_unit(elapsed, :native, :milli_seconds)
+        if delay > 0, do: :timer.sleep(delay)
 
-    loop state, window, controller
+        loop state, window, controller
+    end
   end
 
   def read_controller(controller) do
     dir = GenEvent.call controller, SnakeGame.Controller, :next_dir
     paused? = GenEvent.call controller, SnakeGame.Controller, :pause
-    {dir, paused?}
+    stopped? = GenEvent.call controller, SnakeGame.Controller, :stop
+    {dir, paused?, stopped?}
   end
 
-  def update_state(state, {_dir, true}) do
+  def update_state(state, {_dir, _paused?, true}) do
     state
   end
-  def update_state(state, {dir, _paused?}) do
+  def update_state(state, {_dir, true, _stopped?}) do
+    state
+  end
+  def update_state(state, {dir, _paused?, _stopped?}) do
     {move_len, partial_move} = calc_move(state.field.partial_move, {1, 1}, {1, 30})
     state = put_in(state.field.partial_move, partial_move)
 

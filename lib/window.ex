@@ -115,7 +115,8 @@ defmodule SnakeGame.Window do
     {:reply, :ok, %Window{win | field: %Field{win.field | snake_points: snake_points}}}
   end
 
-  def handle_event(wx(event: wxClose()), win) do {:stop, :normal, win}
+  def handle_event(wx(event: wxClose()), win) do
+    {:stop, :normal, win}
   end
 
   def handle_event(wx(event: wxKey(type: :key_up, keyCode: code)), win) do
@@ -125,6 +126,7 @@ defmodule SnakeGame.Window do
       @wxkRIGHT -> dir_cmd(win.controller, :right)
       @wxkDOWN  -> dir_cmd(win.controller, :down)
       @wxkSPACE -> GenEvent.sync_notify win.controller, :pause_cmd
+      _ -> :ignore
     end
     {:noreply, win}
   end
@@ -167,6 +169,7 @@ defmodule SnakeGame.Window do
     :wxFrame.destroy(win.objects.frame)
     :wxPen.destroy(win.objects.snake_pen)
     :wxBrush.destroy(win.objects.field_brush)
+    GenEvent.sync_notify win.controller, :quit_cmd
   end
 
   def code_change(_, _, win), do: {:ok, win}
