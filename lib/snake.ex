@@ -69,7 +69,7 @@ defmodule SnakeGame.Snake do
 
   defp len({x1, y1}, {x2, y2}), do: abs((x2 - x1) + (y2 - y1))
 
-  defp dir(%Snake{h: h, tail: tail}) do
+  def dir(%Snake{h: h, tail: tail}) do
     p = Enum.fetch!(tail, -1)
     dir(p, h)
   end

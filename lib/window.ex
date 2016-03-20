@@ -151,7 +151,10 @@ defmodule SnakeGame.Window do
       snake_width = calc_width(w)
       offset = div(w - snake_width * grid_size(), 2) + div(snake_width, 2)
       factor = snake_width
-      f_transform = &(&1 * factor + offset)
+      f_transform = fn
+        {i_num, i_denum} -> div(i_num * factor, i_denum) + offset
+        i -> i * factor + offset
+      end
       Enum.map(win.field.snake_points, &(transform_point &1, f_transform))
     end
 
