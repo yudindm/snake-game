@@ -27,7 +27,7 @@ defmodule SnakeGame do
       {_, _, true} -> :ok
       control ->  
         state = update_state state, control
-        Window.draw window, get_snake_points(state)
+        Window.draw window, get_snake_points(state.field)
 
         elapsed = :erlang.monotonic_time - t_start
         delay = div(1000, 30) - :erlang.convert_time_unit(elapsed, :native, :milli_seconds)
@@ -82,12 +82,18 @@ defmodule SnakeGame do
     state
   end
 
-  def get_snake_points(state) do
-    h = move_point(state.field.snake.h, state.field.partial_move, state.field.cur_dir)
-    if (Snake.dir(state.field.snake) != state.field.cur_dir) do
-      [h | Snake.points(state.field.snake)]
+  def get_snake_points(%Model.Field{snake: snake, partial_move: partial_move, cur_dir: cur_dir}) do
+    {ts, te, t} = case snake do
+      %Snake{h: h, tail: [ts]} -> {ts, h, []}
+      %Snake{tail: [ts, te | t]} -> {ts, te, [te | t]}
+    end
+    t = [move_point(ts, partial_move, Snake.dir(ts, te)) | t]
+
+    h = move_point(snake.h, partial_move, cur_dir)
+    if (Snake.dir(snake) != cur_dir) do
+      [h, snake.h | Enum.reverse(t)]
     else
-      [h | Enum.reverse(state.field.snake.tail)]
+      [h | Enum.reverse(t)]
     end
   end
 

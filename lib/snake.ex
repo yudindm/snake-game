@@ -73,7 +73,7 @@ defmodule SnakeGame.Snake do
     p = Enum.fetch!(tail, -1)
     dir(p, h)
   end
-  defp dir({xs, ys}, {xe, ye}) do
+  def dir({xs, ys}, {xe, ye}) do
     cond do
       xe > xs -> :right
       xe < xs -> :left
