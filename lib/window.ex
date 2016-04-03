@@ -2,10 +2,10 @@ defmodule SnakeGame.Window do
   alias SnakeGame.Window
 
   defmodule Objects do
-    defstruct [:frame, :t_len, :canvas, :snake_pen, :border_pen, :field_brush]
+    defstruct [:frame, :t_len, :canvas, :snake_pen, :rabbit_pen, :border_pen, :field_brush]
   end
   defmodule Field do
-    defstruct [:snake_points]
+    defstruct [:snake_points, :rabbits]
   end
   defstruct objects: nil, field: nil, controller: nil
 
@@ -51,8 +51,8 @@ defmodule SnakeGame.Window do
     :wx_object.call(object, :show)
   end
 
-  def draw(object, snake_points) do
-    :wx_object.call(object, {:draw, snake_points})
+  def draw(object, snake_points, rabbits) do
+    :wx_object.call(object, {:draw, snake_points, rabbits})
   end
 
   def init({controller}) do
@@ -83,6 +83,7 @@ defmodule SnakeGame.Window do
     :wxFrame.setSizer(f, s)
 
     sp = :wxPen.new({255, 255, 0}, [width: 3, style: @wxSOLID])
+    rp = :wxPen.new({255, 255, 255}, [width: 3, style: @wxSOLID])
     brush = :wxBrush.new({0, 255, 0})
     bp = :wxPen.new({0, 0, 255}, [width: 1, style: @wxSOLID])
 
@@ -97,6 +98,7 @@ defmodule SnakeGame.Window do
         t_len: t2,
         canvas: c,
         snake_pen: sp,
+        rabbit_pen: rp,
         field_brush: brush,
         border_pen: bp},
       field: %Field{},
@@ -110,9 +112,9 @@ defmodule SnakeGame.Window do
     {:reply, :ok, win}
   end
 
-  def handle_call({:draw, snake_points}, _from,  win) do
+  def handle_call({:draw, snake_points, rabbits}, _from,  win) do
     :wxWindow.refresh win.objects.canvas
-    {:reply, :ok, %Window{win | field: %Field{win.field | snake_points: snake_points}}}
+    {:reply, :ok, put_in(win.field, %Field{snake_points: snake_points, rabbits: rabbits})}
   end
 
   def handle_event(wx(event: wxClose()), win) do
@@ -134,6 +136,7 @@ defmodule SnakeGame.Window do
   def handle_event(wx(event: wxSize(size: {w, _h})), win) do
     snake_width = calc_width(w)
     :wxPen.setWidth(win.objects.snake_pen, snake_width)
+    :wxPen.setWidth(win.objects.rabbit_pen, snake_width)
     :wxPen.setWidth(win.objects.border_pen, w - snake_width * grid_size())
     :wxWindow.refresh win.objects.canvas
     {:noreply, win}
@@ -145,20 +148,22 @@ defmodule SnakeGame.Window do
     bmp = :wxBitmap.new(w, h)
     mdc = :wxMemoryDC.new(bmp)
 
+    snake_width = calc_width(w)
+    offset = div(w - snake_width * grid_size(), 2) + div(snake_width, 2)
+    factor = snake_width
+    f_transform = fn
+      {i_num, i_denum} -> div(i_num * factor, i_denum) + offset
+      i -> i * factor + offset
+    end
+
     dc_pp = if win.field.snake_points == nil do
       nil
     else
-      snake_width = calc_width(w)
-      offset = div(w - snake_width * grid_size(), 2) + div(snake_width, 2)
-      factor = snake_width
-      f_transform = fn
-        {i_num, i_denum} -> div(i_num * factor, i_denum) + offset
-        i -> i * factor + offset
-      end
       Enum.map(win.field.snake_points, &(transform_point &1, f_transform))
     end
 
-    do_draw(win, dc_pp, mdc)
+    do_draw_snake(win, dc_pp, mdc)
+    win.field.rabbits |> Enum.map(&(transform_point &1, f_transform)) |> Enum.each(&(do_draw_rabbit(win, &1, mdc)))
     :wxDC.blit(dc, {0, 0}, {w, h}, mdc, {0, 0})
 
     :wxMemoryDC.destroy(mdc)
@@ -177,7 +182,7 @@ defmodule SnakeGame.Window do
 
   def code_change(_, _, win), do: {:ok, win}
 
-  defp do_draw(win, pp, dc) do
+  defp do_draw_snake(win, pp, dc) do
     :wxDC.setBackground(dc, win.objects.field_brush)
     :wxDC.clear(dc)
 
@@ -193,6 +198,11 @@ defmodule SnakeGame.Window do
       :wxDC.setPen(dc, win.objects.snake_pen)
       :wxDC.drawLines(dc, pp)
     end
+  end
+
+  defp do_draw_rabbit(win, point, dc) do
+    :wxDC.setPen(dc, win.objects.rabbit_pen)
+    :wxDC.drawLine(dc, point, point)
   end
 
   defp calc_width(w) do

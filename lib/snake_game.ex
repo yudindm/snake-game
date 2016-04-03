@@ -3,11 +3,13 @@ defmodule SnakeGame do
   alias SnakeGame.Window
   alias SnakeGame.Model
   alias SnakeGame.Controller
+  alias SnakeGame.Rabbit
 
   def start do
     state = %Model.State{}
     snake = Snake.new [{10, 10}, {10, 20}, {20, 20}, {20, 29}, {29, 29}]
     state = put_in(state.field.snake, snake)
+    state = put_in(state.field.rabbits, [Rabbit.new({15, 15}), Rabbit.new({25, 25})])
 
     {:ok, controller} = GenEvent.start_link([])
     GenEvent.add_handler(controller, Controller, %Controller.State{})
@@ -27,7 +29,9 @@ defmodule SnakeGame do
       {_, _, true} -> :ok
       control ->  
         state = update_state state, control
-        Window.draw window, get_snake_points(state.field)
+        Window.draw(window,
+          get_snake_points(state.field),
+          Enum.map(state.field.rabbits, &(&1.location)))
 
         elapsed = :erlang.monotonic_time - t_start
         delay = div(1000, 30) - :erlang.convert_time_unit(elapsed, :native, :milli_seconds)
