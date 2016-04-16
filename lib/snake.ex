@@ -38,6 +38,10 @@ defmodule SnakeGame.Snake do
 
   def points(%Snake{h: h, tail: tail}), do: [h | Enum.reverse(tail)]
 
+  def segments(snake = %Snake{}), do: segments([], points(snake))
+  defp segments(list, [h0, h1]), do: [{h0, h1} | list]
+  defp segments(list, [h0, h1 | t]), do: segments([{h0, h1} | list], [h1 | t])
+
   defp do_shrink(h, [l], len) do
     tail_len = len(h, l)
     if tail_len > len do

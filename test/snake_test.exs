@@ -1,4 +1,5 @@
 defmodule SnakeTest do
+  alias SnakeGame.Snake
   use ExUnit.Case
 
   test "create snake at any position" do

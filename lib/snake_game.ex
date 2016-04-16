@@ -4,6 +4,8 @@ defmodule SnakeGame do
   alias SnakeGame.Model
   alias SnakeGame.Controller
   alias SnakeGame.Rabbit
+  alias SnakeGame.Geo
+  alias SnakeGame.Math
 
   def start do
     state = %Model.State{}
@@ -55,6 +57,8 @@ defmodule SnakeGame do
     state
   end
   def update_state(state, {dir, _paused?, _stopped?}) do
+    state = update_in(state.field.cur_tick, &(&1 + 1))
+
     if dir != :none do
       state = update_in(state.field.dir_queue, &(:queue.in dir, &1))
     end
@@ -83,6 +87,15 @@ defmodule SnakeGame do
       end 
     end
 
+    keep_rabbit = &(&1.born_at > state.field.cur_tick - 30 * 30 * 2)
+    state = update_in(state.field.rabbits,
+      &(&1 |> Enum.filter(keep_rabbit) |> Enum.to_list()))
+
+    if (Enum.count(state.field.rabbits, &(&1.alive?)) < 4 and
+    Enum.all?(state.field.rabbits, &(&1.born_at < state.field.cur_tick - 150))) do
+      state = update_in(state.field.rabbits, &(add_rabbit(state, &1)))
+    end
+
     state
   end
 
@@ -91,9 +104,9 @@ defmodule SnakeGame do
       %Snake{h: h, tail: [ts]} -> {ts, h, []}
       %Snake{tail: [ts, te | t]} -> {ts, te, [te | t]}
     end
-    t = [move_point(ts, partial_move, Snake.dir(ts, te)) | t]
+    t = [Geo.move_point(ts, partial_move, Snake.dir(ts, te)) | t]
 
-    h = move_point(snake.h, partial_move, cur_dir)
+    h = Geo.move_point(snake.h, partial_move, cur_dir)
     if (Snake.dir(snake) != cur_dir) do
       [h, snake.h | Enum.reverse(t)]
     else
@@ -101,22 +114,40 @@ defmodule SnakeGame do
     end
   end
 
-  defp move_point({px, py}, dist, dir) do
-    case dir do
-      :left -> {sub_partial(px, dist), py}
-      :right -> {add_partial(px, dist), py}
-      :down -> {px, add_partial(py, dist)}
-      :up -> {px, sub_partial(py, dist)}
-      :none -> {px, py}
+  defp add_rabbit(state, list) do
+    [Rabbit.new(get_free_location(state.field), state.field.cur_tick) | list]
+  end
+
+  defp get_free_location(field) do
+    x = find_free_x(field, :rand.uniform(30) - 1)
+    y = find_free_y(field, x, :rand.uniform(30) - 1)
+    {x, y}
+  end
+  defp find_free_x(field, x) do
+    if (Enum.any?(0..29, &(is_free({x, &1}, field)))) do
+      x
+    else
+      if (x < 29) do
+        find_free_x(field, x + 1)
+      else
+        find_free_x(field, 0)
+      end
     end
   end
-
-  defp add_partial(i, {num, denum}) do
-    make_simpler(i * denum + num, denum)
+  defp find_free_y(field, x, y) do
+    if (is_free({x, y}, field)) do
+      y
+    else
+      if (y < 29) do
+        find_free_y(field, x, y + 1)
+      else
+        find_free_y(field, x, 0)
+      end
+    end
   end
-
-  defp sub_partial(i, {num, denum}) do
-    make_simpler(i * denum - num, denum)
+  defp is_free(p, field) do
+    Enum.all?(field.rabbits, &(not Geo.intersected(&1.location, p))) and
+    Enum.all?(Snake.segments(field.snake), &(not Geo.intersected(&1, p)))
   end
 
   def calc_move({num, denum}, {speed_num, speed_denum}, {tick_num, tick_denum}) do
@@ -124,19 +155,7 @@ defmodule SnakeGame do
     inc_denum = tick_denum * speed_denum
     num = num * inc_denum + inc_num * denum
     denum = denum * tick_denum
-    {num, denum} = make_simpler(num, denum)
+    {num, denum} = Math.make_simpler(num, denum)
     {div(num, denum), {rem(num, denum), denum}}
   end
-
-  def make_simpler(num, denum) do
-    gcd = calc_gcd(num, denum)
-    if gcd > 1 do
-      {div(num, gcd), div(denum, gcd)}
-    else
-      {num, denum}
-    end
-  end
-  
-  defp calc_gcd(a,0), do: abs(a)
-  defp calc_gcd(a,b), do: calc_gcd(b, rem(a,b))
 end
