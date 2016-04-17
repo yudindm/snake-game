@@ -9,7 +9,8 @@ defmodule SnakeGame do
 
   def start do
     state = %Model.State{}
-    snake = Snake.new [{10, 10}, {10, 20}, {20, 20}, {20, 29}, {29, 29}]
+    #snake = Snake.new [{10, 10}, {10, 20}, {20, 20}, {20, 29}, {29, 29}]
+    snake = Snake.new 10, 10
     state = put_in(state.field.snake, snake)
     state = put_in(state.field.rabbits, [Rabbit.new({15, 15}), Rabbit.new({25, 25})])
 
@@ -76,13 +77,25 @@ defmodule SnakeGame do
       {move_len, partial_move} = calc_move(state.field.partial_move, {1, 1}, {1, 30})
       state = put_in(state.field.partial_move, partial_move)
       if move_len > 0 do
-        state = put_in(state.field.snake, Snake.move(state.field.snake, state.field.cur_dir, move_len))
+        if (state.field.grow_cnt > 0) do
+          state = put_in(state.field.snake, Snake.grow(state.field.snake, state.field.cur_dir, move_len))
+          state = update_in(state.field.grow_cnt, &(&1 - 1))
+        else
+          state = put_in(state.field.snake, Snake.move(state.field.snake, state.field.cur_dir, move_len))
+        end
 
         case :queue.out state.field.dir_queue do
           {:empty, _} -> state
           {{:value, cur_dir}, dir_queue} ->
             state = put_in(state.field.cur_dir, cur_dir)
             state = put_in(state.field.dir_queue, dir_queue)
+        end
+
+        eaten_rabbit_pos = state.field.rabbits |>
+          Enum.find_index(&(Geo.intersected(state.field.snake.h, &1.location)))
+        if eaten_rabbit_pos != nil do
+          state = update_in(state.field.rabbits, &(List.delete_at(&1, eaten_rabbit_pos)))
+          state = update_in(state.field.grow_cnt, &(&1 + 1))
         end
       end 
     end
@@ -99,12 +112,16 @@ defmodule SnakeGame do
     state
   end
 
-  def get_snake_points(%Model.Field{snake: snake, partial_move: partial_move, cur_dir: cur_dir}) do
+  def get_snake_points(%Model.Field{snake: snake, partial_move: partial_move, cur_dir: cur_dir, grow_cnt: grow_cnt}) do
     {ts, te, t} = case snake do
       %Snake{h: h, tail: [ts]} -> {ts, h, []}
       %Snake{tail: [ts, te | t]} -> {ts, te, [te | t]}
     end
-    t = [Geo.move_point(ts, partial_move, Snake.dir(ts, te)) | t]
+    if (grow_cnt == 0) do
+      t = [Geo.move_point(ts, partial_move, Snake.dir(ts, te)) | t]
+    else
+      t = [ts | t]
+    end
 
     h = Geo.move_point(snake.h, partial_move, cur_dir)
     if (Snake.dir(snake) != cur_dir) do
