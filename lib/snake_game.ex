@@ -74,7 +74,7 @@ defmodule SnakeGame do
     end
 
     if state.field.cur_dir != :none do
-      {move_len, partial_move} = calc_move(state.field.partial_move, {1, 1}, {1, 30})
+      {move_len, partial_move} = calc_move(state.field.partial_move, state.field.speed, {1, 30})
       state = put_in(state.field.partial_move, partial_move)
       if move_len > 0 do
         if (state.field.grow_cnt > 0) do
@@ -96,6 +96,16 @@ defmodule SnakeGame do
         if eaten_rabbit_pos != nil do
           state = update_in(state.field.rabbits, &(List.delete_at(&1, eaten_rabbit_pos)))
           state = update_in(state.field.grow_cnt, &(&1 + 1))
+          state = update_in(state.score.cur_rabbits, &(&1 + 1))
+          state = put_in(state.field.speed,
+            cond do
+              state.score.cur_rabbits <= 2 -> {1, 1}
+              state.score.cur_rabbits <= 4 -> {3, 2}
+              state.score.cur_rabbits <= 8 -> {2, 1}
+              state.score.cur_rabbits <= 16 -> {5, 2}
+              state.score.cur_rabbits <= 32 -> {3, 1}
+              true -> {7, 2}
+            end)
         end
       end 
     end
@@ -171,7 +181,7 @@ defmodule SnakeGame do
     inc_num = tick_num * speed_num
     inc_denum = tick_denum * speed_denum
     num = num * inc_denum + inc_num * denum
-    denum = denum * tick_denum
+    denum = denum * inc_denum
     {num, denum} = Math.make_simpler(num, denum)
     {div(num, denum), {rem(num, denum), denum}}
   end
